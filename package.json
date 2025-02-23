@@ -1,0 +1,26 @@
+{
+  "name": "torrent-client",
+  "version": "1.0.0",
+  "description": "torrent client from scratch",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npx tsc",
+    "start": "node ./dist/index.js",
+    "build:start": "npm run build & npm run start"
+  },
+  "keywords": [
+    "bittorrent",
+    "torrent",
+    "protocol"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "typescript": "^5.7.3"
+  },
+  "devDependencies": {
+    "@tsconfig/node20": "^20.1.4",
+    "tsx": "^4.19.3"
+  }
+}
