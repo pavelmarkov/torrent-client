@@ -1,4 +1,5 @@
 {
+  "module": "commonjs",
   "compilerOptions": {
     "allowJs": true,
     "outDir": "dist"
