@@ -1,4 +1,6 @@
-type ParsedMagnetType = { [k: string]: ParsedMagnetType; } | ParsedMagnetType[] | number | string;
+import { IMetainfoFile } from "../types/metainfo-file-structure.interface";
+
+type ParsedMagnetType = { [k: string]: ParsedMagnetType; } | ParsedMagnetType[] | number | string | IMetainfoFile;
 
 interface IParsedElement {
   data: ParsedMagnetType;
@@ -25,20 +27,20 @@ export class Parser {
     if (content.startsWith(this.integerSymbol)) {
       return this.parseInteger(content);
     }
-
-    let cursor = 0;
-    const stringContentSize = content.substring(cursor, content.indexOf(this.splitSymbol));
-    cursor += stringContentSize.length + this.splitSymbol.length;
-    const stringContent = content.substring(cursor, cursor + Number(stringContentSize));
-    cursor += Number(stringContentSize);
-
+    if (content.length && this.isDigit(content[0])) {
+      return this.parseString(content);
+    }
     return {
-      data: stringContent,
-      length: cursor,
+      data: content,
+      length: content.length,
     };
   }
 
-  parseDictionary(part: string): IParsedElement {
+  private isDigit(character: string): boolean {
+    return /^[0-9]$/.test(character);
+  }
+
+  private parseDictionary(part: string): IParsedElement {
     let cursor = 0;
     const partLength = part.length;
 
@@ -50,12 +52,17 @@ export class Parser {
       const parsedKey = this.parse(part.substring(cursor, partLength));
       const key = <string>parsedKey.data;
       cursor += parsedKey.length;
+      if (!parsedKey.data) {
+        break;
+      }
 
       const parsedKeyContent = this.parse(part.substring(cursor, partLength));
       cursor += parsedKeyContent.length;
-      if (!parsedKeyContent.data) {
+
+      if (parsedKeyContent.data === null) {
         break;
       }
+
       dictionary[key] = parsedKeyContent.data;
     }
 
@@ -65,7 +72,7 @@ export class Parser {
     };
   }
 
-  parseList(part: string): IParsedElement {
+  private parseList(part: string): IParsedElement {
     let cursor = 0;
     const partLength = part.length;
 
@@ -85,7 +92,7 @@ export class Parser {
     return { data: list, length: cursor };
   }
 
-  parseEnd(part: string): IParsedElement {
+  private parseEnd(part: string): IParsedElement {
     let cursor = 0;
 
     cursor += this.endSymbol.length;
@@ -93,7 +100,7 @@ export class Parser {
     return { data: null, length: cursor };
   }
 
-  parseInteger(part: string): IParsedElement {
+  private parseInteger(part: string): IParsedElement {
     let cursor = 0;
 
     cursor += this.integerSymbol.length;
@@ -102,5 +109,18 @@ export class Parser {
     cursor += integer.length + this.endSymbol.length;
 
     return { data: Number(integer), length: cursor };
+  }
+
+  private parseString(part: string): IParsedElement {
+    let cursor = 0;
+    const stringContentSize = part.substring(cursor, part.indexOf(this.splitSymbol));
+    cursor += stringContentSize.length + this.splitSymbol.length;
+    const stringContent = part.substring(cursor, cursor + Number(stringContentSize));
+    cursor += Number(stringContentSize);
+
+    return {
+      data: stringContent,
+      length: cursor,
+    };
   }
 }
