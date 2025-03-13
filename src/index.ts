@@ -34,19 +34,8 @@ async function readMagnet(path: string): Promise<void> {
       compact: 1,
     };
 
-    const res = getPeersHttp(metaFile.announce, requestPeersParams).then((data) => {
-      const responseData = parser.parse(data);
-      const peersBuffer = Buffer.from(responseData['data']['peers'], 'binary');
-      const numPeers = Math.floor(peersBuffer.length / 6);
-      const peerList = [];
-      for (let peerNum = 0; peerNum < numPeers; peerNum++) {
-        const shift = peerNum * 6;
-        const ip = `${peersBuffer[shift]}.${peersBuffer[shift + 1]}.${peersBuffer[shift + 2]}.${peersBuffer[shift + 3]}`;
-        const port = peersBuffer.readUInt16BE(shift + 4);
-        peerList.push({ ip, port });
-      }
-      console.log(peerList);
-    });
+    const peersDataBencoded = await getPeersHttp(metaFile.announce, requestPeersParams);
+    console.log(peersDataBencoded);
   });
 }
 

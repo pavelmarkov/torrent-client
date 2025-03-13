@@ -7,3 +7,16 @@ export class GetPeersRequestDto {
   left: number;
   compact: number;
 }
+
+export class GetPeersDecodedResponseDto {
+  interval: number;
+  'min interval': number;
+  peers: PeerInfoDto[];
+  complete: number;
+  incomplete: number;
+}
+
+export class PeerInfoDto {
+  ip: string;
+  port: number;
+}

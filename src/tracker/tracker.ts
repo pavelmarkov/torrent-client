@@ -1,8 +1,9 @@
 import { URL } from 'url';
 import { get, IncomingMessage } from 'node:http';
-import { GetPeersRequestDto } from '../types/peers.dto';
+import { GetPeersDecodedResponseDto, GetPeersRequestDto, PeerInfoDto } from '../types/peers.dto';
+import { Parser } from '../bencode/parser';
 
-export async function getPeersHttp(url: string, requestPeersParams: GetPeersRequestDto): Promise<string> {
+export async function getPeersHttp(url: string, requestPeersParams: GetPeersRequestDto): Promise<GetPeersDecodedResponseDto> {
 
   const announceUrl = new URL(url);
   const encodedHash = urlEncodeHash(requestPeersParams.info_hash);
@@ -37,7 +38,8 @@ export async function getPeersHttp(url: string, requestPeersParams: GetPeersRequ
       });
 
       response.on('end', () => {
-        resolve(data);
+        const peers = decodePeersResponse(data);
+        resolve(peers);
       });
 
       response.on('error', (error) => {
@@ -58,4 +60,30 @@ function urlEncodeHash(hash: string): string {
   }
   const encodedHash = encodedHashArray.join('');
   return encodedHash;
+}
+
+function decodePeersResponse(peersResponse: string): GetPeersDecodedResponseDto {
+  const parser = new Parser();
+  const responseData = parser.parse(peersResponse);
+
+  const result: GetPeersDecodedResponseDto = {
+    interval: responseData.data['interval'],
+    'min interval': responseData.data['min interval'],
+    peers: [],
+    complete: responseData.data['complete'],
+    incomplete: responseData.data['incomplete'],
+  };
+
+  const peersBuffer = Buffer.from(responseData['data']['peers'], 'binary');
+  const numPeers = Math.floor(peersBuffer.length / 6);
+  const peerList: PeerInfoDto[] = [];
+  for (let peerNum = 0; peerNum < numPeers; peerNum++) {
+    const shift = peerNum * 6;
+    const ip = `${peersBuffer[shift]}.${peersBuffer[shift + 1]}.${peersBuffer[shift + 2]}.${peersBuffer[shift + 3]}`;
+    const port = peersBuffer.readUInt16BE(shift + 4);
+    peerList.push({ ip, port });
+  }
+  result.peers = peerList;
+
+  return result;
 }
