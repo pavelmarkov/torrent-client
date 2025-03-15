@@ -12,5 +12,5 @@ export interface IMetainfoFile {
 export interface IInfo {
   length: number;
   name: string;
-  pieces: string | Buffer;
+  pieces: string;
 }
