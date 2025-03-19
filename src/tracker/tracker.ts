@@ -31,14 +31,15 @@ export async function getPeersHttp(url: string, requestPeersParams: GetPeersRequ
       agent: false
     }, (response: IncomingMessage) => {
 
-      let data = '';
+      const data: Buffer[] = [];
 
       response.on('data', (chunk) => {
-        data += chunk.toString();
+        data.push(chunk);
       });
 
       response.on('end', () => {
-        const peers = decodePeersResponse(data);
+        const receivedData = Buffer.concat(data);
+        const peers = decodePeersResponse(receivedData);
         resolve(peers);
       });
 
@@ -62,10 +63,9 @@ function urlEncodeHash(hash: string): string {
   return encodedHash;
 }
 
-function decodePeersResponse(peersResponse: string): GetPeersDecodedResponseDto {
+function decodePeersResponse(peersResponse: Buffer): GetPeersDecodedResponseDto {
   const parser = new Parser();
-  const responseData = parser.parse(peersResponse);
-
+  const responseData = parser.parse(Buffer.from(peersResponse).toString('binary'));
   const result: GetPeersDecodedResponseDto = {
     interval: responseData.data['interval'],
     'min interval': responseData.data['min interval'],
@@ -77,6 +77,7 @@ function decodePeersResponse(peersResponse: string): GetPeersDecodedResponseDto 
   const peersBuffer = Buffer.from(responseData['data']['peers'], 'binary');
   const numPeers = Math.floor(peersBuffer.length / 6);
   const peerList: PeerInfoDto[] = [];
+
   for (let peerNum = 0; peerNum < numPeers; peerNum++) {
     const shift = peerNum * 6;
     const ip = `${peersBuffer[shift]}.${peersBuffer[shift + 1]}.${peersBuffer[shift + 2]}.${peersBuffer[shift + 3]}`;
