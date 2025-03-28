@@ -11,6 +11,7 @@ export interface IMetainfoFile {
 
 export interface IInfo {
   length: number;
+  'piece length': number;
   name: string;
   pieces: string;
 }

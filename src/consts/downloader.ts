@@ -1,0 +1,1 @@
+export const DEFAULT_BLOBK_SIZE = 16 * 1024;
