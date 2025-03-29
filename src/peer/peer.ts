@@ -11,10 +11,10 @@ export class Peer {
   client: Socket;
   keepAlive: boolean;
   infoHash: string;
-  constructor(peerInfo: PeerInfoDto, clientId: string, infoHash: string) {
+  constructor(peerInfo: PeerInfoDto, downloader: Downloader,) {
     this.peerInfo = peerInfo;
-    this.clientId = clientId;
-    this.infoHash = infoHash;
+    this.clientId = downloader.clientPeerId;
+    this.infoHash = downloader.infoHash;
     this.client = new net.Socket({});
     this.client.setTimeout(120000);
     this.keepAlive = true;

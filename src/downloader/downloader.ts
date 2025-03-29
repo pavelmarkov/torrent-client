@@ -1,8 +1,12 @@
 import { DEFAULT_BLOBK_SIZE } from "../consts";
+import { createInfoHash, generateRandomPeerId } from "../cryptography/cryptography";
 import { FilePiece } from "../types/downloader.dto";
+import { TorrentFileInfo } from "../types/torrent-file-info";
 
 export class Downloader {
 
+  clientPeerId: string;
+  infoHash: string;
   parts: FilePiece[];
   current: { pieceIndex: number, blockIndes: number; };
   downloadedBlocks: {
@@ -12,14 +16,22 @@ export class Downloader {
   downloaded: number;
   left: number;
 
-  constructor(fileSize: number, pieceSize: number) {
+  constructor(torrentFileInfo: TorrentFileInfo) {
     this.uploaded = 0;
     this.downloaded = 0;
-    this.left = fileSize;
-    this.parts = this.divideByBlocks(fileSize, pieceSize);
+    this.left = torrentFileInfo.meta.info.length;
+
+    this.infoHash = createInfoHash(torrentFileInfo.bencodedInfo);
+    this.clientPeerId = generateRandomPeerId();
+
+    this.parts = this.divideByBlocks(
+      torrentFileInfo.meta.info.length,
+      torrentFileInfo.meta.info["piece length"]
+    );
     this.parts.forEach(piece => {
       piece.blocks = this.divideByBlocks(piece.length, DEFAULT_BLOBK_SIZE);
     });
+
   }
 
   public prepareParts(): void {

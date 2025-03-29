@@ -12,17 +12,13 @@ async function main(path: string): Promise<void> {
 
   const torrentFileInfo = await readTorrentFile(path);
 
-  const downloader = new Downloader(
-    torrentFileInfo.meta.info.length,
-    torrentFileInfo.meta.info['piece length']
+  const downloader = new Downloader(torrentFileInfo);
+
+  const peersData = await getPeersHttp(
+    torrentFileInfo.meta.announce, downloader
   );
 
-  const hash = createInfoHash(torrentFileInfo.bencodedInfo);
-  const peerId = generateRandomPeerId();
-
-  const peersData = await getPeersHttp(torrentFileInfo.meta.announce, hash, peerId, downloader);
-
-  const peer = new Peer(peersData.peers[0], peerId, hash);
+  const peer = new Peer(peersData.peers[0], downloader);
   await peer.download(downloader);
 
   console.log(torrentFileInfo.meta);

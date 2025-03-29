@@ -6,14 +6,12 @@ import { Downloader } from '../downloader/downloader';
 
 export async function getPeersHttp(
   url: string,
-  infoHash: string,
-  peerId: string,
   downloader: Downloader,
 ): Promise<GetPeersDecodedResponseDto> {
 
   const requestPeersParams: GetPeersRequestDto = {
-    info_hash: infoHash,
-    peer_id: peerId,
+    info_hash: downloader.infoHash,
+    peer_id: downloader.clientPeerId,
     port: null,
     uploaded: downloader.uploaded,
     downloaded: downloader.downloaded,
