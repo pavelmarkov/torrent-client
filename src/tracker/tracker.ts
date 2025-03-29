@@ -2,8 +2,24 @@ import { URL } from 'url';
 import { get, IncomingMessage } from 'node:http';
 import { GetPeersDecodedResponseDto, GetPeersRequestDto, PeerInfoDto } from '../types/peers.dto';
 import { Parser } from '../bencode/parser';
+import { Downloader } from '../downloader/downloader';
 
-export async function getPeersHttp(url: string, requestPeersParams: GetPeersRequestDto): Promise<GetPeersDecodedResponseDto> {
+export async function getPeersHttp(
+  url: string,
+  infoHash: string,
+  peerId: string,
+  downloader: Downloader,
+): Promise<GetPeersDecodedResponseDto> {
+
+  const requestPeersParams: GetPeersRequestDto = {
+    info_hash: infoHash,
+    peer_id: peerId,
+    port: null,
+    uploaded: downloader.uploaded,
+    downloaded: downloader.downloaded,
+    left: downloader.left,
+    compact: 1,
+  };
 
   const announceUrl = new URL(url);
   const encodedHash = urlEncodeHash(requestPeersParams.info_hash);

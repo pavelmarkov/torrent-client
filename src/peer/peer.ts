@@ -10,21 +10,23 @@ export class Peer {
   peerInfo: PeerInfoDto;
   client: Socket;
   keepAlive: boolean;
-  constructor(peerId: string, peerInfo: PeerInfoDto) {
-    this.clientId = peerId;
+  infoHash: string;
+  constructor(peerInfo: PeerInfoDto, clientId: string, infoHash: string) {
     this.peerInfo = peerInfo;
+    this.clientId = clientId;
+    this.infoHash = infoHash;
     this.client = new net.Socket({});
     this.client.setTimeout(120000);
     this.keepAlive = true;
   }
 
   async download(
-    handshakeMessage: Buffer,
     downloader: Downloader,
   ): Promise<void> {
     this.client.connect(this.peerInfo.port, this.peerInfo.ip);
     this.client.on('connect', () => {
       console.log('connection has occured');
+      const handshakeMessage = this.preparePeerHandshakeMessage();
       this.client.write(handshakeMessage);
     });
     this.client.on('data', (data) => {
@@ -102,7 +104,6 @@ export class Peer {
     this.client.write(message);
   };
 
-
   sendBitfield(): void {
     const message = Buffer.alloc(5);
     message.writeUInt32BE(1);
@@ -121,22 +122,21 @@ export class Peer {
     this.client.destroy();
   }
 
-}
-
-export function preparePeerHandshakeMessage(infoHash: string, peerId: string): Buffer {
-  const protocolStringLength = Buffer.from([19]);
-  const protocolString = Buffer.from("BitTorrent protocol");
-  const reservedBytes = Buffer.from([0, 0, 0, 0, 0, 0, 0, 0]);
-  const infoHashPart = Buffer.from(infoHash, 'hex');
-  console.log('encoded info hash: ', infoHashPart.toString('hex'));
-  const peerIdPart = Buffer.from(peerId, 'hex');
-  return Buffer.concat([
-    protocolStringLength,
-    protocolString,
-    reservedBytes,
-    infoHashPart,
-    peerIdPart,
-  ]);
+  preparePeerHandshakeMessage(): Buffer {
+    const protocolStringLength = Buffer.from([19]);
+    const protocolString = Buffer.from("BitTorrent protocol");
+    const reservedBytes = Buffer.from([0, 0, 0, 0, 0, 0, 0, 0]);
+    const infoHashPart = Buffer.from(this.infoHash, 'hex');
+    console.log('encoded info hash: ', infoHashPart.toString('hex'));
+    const peerIdPart = Buffer.from(this.clientId, 'hex');
+    return Buffer.concat([
+      protocolStringLength,
+      protocolString,
+      reservedBytes,
+      infoHashPart,
+      peerIdPart,
+    ]);
+  }
 }
 
 function decodePeerHandshakeMessage(peerMessage: Buffer): string {

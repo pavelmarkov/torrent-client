@@ -5,15 +5,24 @@ export class Downloader {
 
   parts: FilePiece[];
   current: { pieceIndex: number, blockIndes: number; };
-  downloaded: {
+  downloadedBlocks: {
     [k: string]: Buffer;
   };
+  uploaded: number;
+  downloaded: number;
+  left: number;
 
-  public prepareParts(fileSize: number, pieceSize: number): void {
+  constructor(fileSize: number, pieceSize: number) {
+    this.uploaded = 0;
+    this.downloaded = 0;
+    this.left = fileSize;
     this.parts = this.divideByBlocks(fileSize, pieceSize);
     this.parts.forEach(piece => {
       piece.blocks = this.divideByBlocks(piece.length, DEFAULT_BLOBK_SIZE);
     });
+  }
+
+  public prepareParts(): void {
   };
 
   private divideByBlocks(totalSize: number, blockSize: number): FilePiece[] {
