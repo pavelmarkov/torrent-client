@@ -11,6 +11,12 @@ export class Peer {
   client: Socket;
   keepAlive: boolean;
   infoHash: string;
+
+  receivingPieceData: boolean;
+  receivedData: Buffer[];
+  receivedDataLength: number;
+  receiveDataExpectedLength: number;
+
   constructor(peerInfo: PeerInfoDto, downloader: Downloader,) {
     this.peerInfo = peerInfo;
     this.clientId = downloader.clientPeerId;
@@ -18,6 +24,11 @@ export class Peer {
     this.client = new net.Socket({});
     this.client.setTimeout(120000);
     this.keepAlive = true;
+
+    this.receivingPieceData = false;
+    this.receivedData = [];
+    this.receivedDataLength = 0;
+    this.receiveDataExpectedLength = 0;
   }
 
   async download(
@@ -31,12 +42,21 @@ export class Peer {
     });
     this.client.on('data', (data) => {
       this.logReceivedData(data);
+      if (this.receivingPieceData) {
+        this.receivePieceData(data);
+        return;
+      }
       const messageLength = data.readUInt32BE();
       const messageType = messageLength > 0 ? data.readUInt8(4) : PeerMessageIdEnum.keep;
       if (!this.peerId) {
         this.peerId = decodePeerHandshakeMessage(data);
         this.sendBitfield();
         this.sendHave();
+      }
+      if (messageType === PeerMessageIdEnum.piece) {
+        console.log('piece received');
+        this.receivingPieceData = true;
+        this.receivePieceMessage(data);
       }
       if (messageType === PeerMessageIdEnum.bitfield) {
         console.log('bitfield received');
@@ -45,9 +65,6 @@ export class Peer {
       if (messageType === PeerMessageIdEnum.unchoke) {
         console.log('unchoke received');
         this.sendRequest(downloader);
-      }
-      if (messageType === PeerMessageIdEnum.piece) {
-        console.log('piece received');
       }
       if (messageType === PeerMessageIdEnum.keep) {
         this.sendKeepAlive();
@@ -65,6 +82,34 @@ export class Peer {
       console.log('timeout has occured');
       this.closeConnection();
     });
+  }
+
+  receivePieceMessage(data: Buffer): void {
+    console.log('receiving peice message');
+    const totalDataLength = data.length;
+    const messageLength = data.readUInt32BE();
+    const messageType = data.readUInt8(4);
+    const pieceIndex = data.readUInt32BE(5);
+    const blockBegin = data.readUInt32BE(9);
+
+    const blockDataPart = data.subarray(13, totalDataLength);
+    this.receivedData.push(blockDataPart);
+    this.receivedDataLength += blockDataPart.length;
+    console.log('block length is ', blockDataPart.length);
+
+    this.receiveDataExpectedLength = messageLength - (1 + 4 + 4);
+  };
+
+  receivePieceData(data: Buffer): void {
+    console.log('receiving piece data: ', data.length);
+    this.receivedData.push(data);
+    this.receivedDataLength += data.length;
+    if (this.receivedDataLength === this.receiveDataExpectedLength) {
+      this.receivingPieceData = false;
+      const receivedBlock = Buffer.concat(this.receivedData);
+      console.log('received piece block');
+      console.log('received block length is ', receivedBlock.length);
+    }
   }
 
   sendInterested(): void {

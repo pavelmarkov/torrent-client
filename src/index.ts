@@ -1,6 +1,5 @@
 import * as path from 'path';
 import { getPeersHttp } from './tracker/tracker';
-import { createInfoHash, generateRandomPeerId } from './cryptography/cryptography';
 import { Peer } from './peer/peer';
 import { readTorrentFile } from './torrent-file/torrent-file';
 import { Downloader } from './downloader/downloader';
