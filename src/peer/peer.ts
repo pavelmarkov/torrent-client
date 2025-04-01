@@ -5,22 +5,23 @@ import { PeerMessageIdEnum } from '../types/peer-message-id.enum';
 import { Downloader } from '../downloader/downloader';
 
 export class Peer {
-  clientId: string;
   peerId: string;
   peerInfo: PeerInfoDto;
   client: Socket;
   keepAlive: boolean;
-  infoHash: string;
+
+  downloader: Downloader;
 
   receivingPieceData: boolean;
   receivedData: Buffer[];
   receivedDataLength: number;
   receiveDataExpectedLength: number;
+  currentPieceIndex: number;
+  currentBlockIndex: number;
 
   constructor(peerInfo: PeerInfoDto, downloader: Downloader,) {
     this.peerInfo = peerInfo;
-    this.clientId = downloader.clientPeerId;
-    this.infoHash = downloader.infoHash;
+    this.downloader = downloader;
     this.client = new net.Socket({});
     this.client.setTimeout(120000);
     this.keepAlive = true;
@@ -29,11 +30,11 @@ export class Peer {
     this.receivedData = [];
     this.receivedDataLength = 0;
     this.receiveDataExpectedLength = 0;
+    this.currentPieceIndex = 0;
+    this.currentBlockIndex = 0;
   }
 
-  async download(
-    downloader: Downloader,
-  ): Promise<void> {
+  async download(): Promise<void> {
     this.client.connect(this.peerInfo.port, this.peerInfo.ip);
     this.client.on('connect', () => {
       console.log('connection has occured');
@@ -64,7 +65,7 @@ export class Peer {
       }
       if (messageType === PeerMessageIdEnum.unchoke) {
         console.log('unchoke received');
-        this.sendRequest(downloader);
+        this.sendRequest();
       }
       if (messageType === PeerMessageIdEnum.keep) {
         this.sendKeepAlive();
@@ -98,6 +99,10 @@ export class Peer {
     console.log('block length is ', blockDataPart.length);
 
     this.receiveDataExpectedLength = messageLength - (1 + 4 + 4);
+
+    if (this.receivedDataLength === this.receiveDataExpectedLength) {
+      this.saveBlock();
+    }
   };
 
   receivePieceData(data: Buffer): void {
@@ -105,10 +110,33 @@ export class Peer {
     this.receivedData.push(data);
     this.receivedDataLength += data.length;
     if (this.receivedDataLength === this.receiveDataExpectedLength) {
-      this.receivingPieceData = false;
-      const receivedBlock = Buffer.concat(this.receivedData);
-      console.log('received piece block');
-      console.log('received block length is ', receivedBlock.length);
+      this.saveBlock();
+    }
+  }
+
+  saveBlock(): void {
+    this.receivingPieceData = false;
+    const receivedBlock = Buffer.concat(this.receivedData);
+    console.log('received piece block');
+    console.log('received block length is ', receivedBlock.length);
+    console.log('writing block: ', this.currentPieceIndex, this.currentBlockIndex);
+    this.downloader.writeBlock(receivedBlock, this.currentPieceIndex, this.currentBlockIndex);
+    const nextUndoneBlock = this.downloader.getNextUndoneBlock(this.peerId);
+    console.log('next block is: ', nextUndoneBlock);
+    if (nextUndoneBlock) {
+      this.receivedData = [];
+      this.receivedDataLength = 0;
+      this.receiveDataExpectedLength = nextUndoneBlock.length;
+      this.currentPieceIndex = nextUndoneBlock.parent;
+      this.currentBlockIndex = nextUndoneBlock.index;
+      setTimeout(
+        () => {
+          this.sendRequest();
+        }, 1000
+      );
+    } else {
+      this.downloader.saveFile();
+      this.closeConnection();
     }
   }
 
@@ -121,13 +149,14 @@ export class Peer {
     this.keepAlive = true;
   };
 
-  sendRequest(downloader: Downloader): void {
+  sendRequest(): void {
+    const undoneBlock = this.downloader.getNextUndoneBlock(this.peerId);
     const message = Buffer.alloc(17);
     message.writeUInt32BE(13);
     message.writeUInt8(PeerMessageIdEnum.request, 4);
-    message.writeUInt32BE(downloader.parts[0].index, 5);
-    message.writeUInt32BE(downloader.parts[0].blocks[0].begin, 9);
-    message.writeUInt32BE(downloader.parts[0].blocks[0].length, 13);
+    message.writeUInt32BE(undoneBlock.parent, 5);
+    message.writeUInt32BE(undoneBlock.begin, 9);
+    message.writeUInt32BE(undoneBlock.length, 13);
     console.log(`sending request to ${this.peerId}: `, message);
     this.client.write(message);
     this.keepAlive = true;
@@ -171,9 +200,9 @@ export class Peer {
     const protocolStringLength = Buffer.from([19]);
     const protocolString = Buffer.from("BitTorrent protocol");
     const reservedBytes = Buffer.from([0, 0, 0, 0, 0, 0, 0, 0]);
-    const infoHashPart = Buffer.from(this.infoHash, 'hex');
+    const infoHashPart = Buffer.from(this.downloader.infoHash, 'hex');
     console.log('encoded info hash: ', infoHashPart.toString('hex'));
-    const peerIdPart = Buffer.from(this.clientId, 'hex');
+    const peerIdPart = Buffer.from(this.downloader.clientPeerId, 'hex');
     return Buffer.concat([
       protocolStringLength,
       protocolString,

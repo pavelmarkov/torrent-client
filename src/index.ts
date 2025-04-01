@@ -18,7 +18,7 @@ async function main(path: string): Promise<void> {
   );
 
   const peer = new Peer(peersData.peers[0], downloader);
-  await peer.download(downloader);
+  await peer.download();
 
   console.log(torrentFileInfo.meta);
   console.log(torrentFileInfo.decodeInfoFilePieces);
