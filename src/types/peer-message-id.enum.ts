@@ -1,9 +1,9 @@
 export enum PeerMessageIdEnum {
-  keep = 0,
-  unchoke = 1,
-  interested = 2,
-  have = 4,
-  bitfield = 5,
-  request = 6,
-  piece = 7,
+  KEEP = 0,
+  UNCHOKE = 1,
+  INTERESTED = 2,
+  HAVE = 4,
+  BITFIELD = 5,
+  REQUEST = 6,
+  PIECE = 7,
 }
