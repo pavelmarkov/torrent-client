@@ -1,12 +1,11 @@
 import { DEFAULT_BLOBK_SIZE } from "../consts";
-import { createInfoHash, generateRandomPeerId } from "../cryptography/cryptography";
+import * as crypto from "crypto";
 import { FilePiece } from "../types/downloader.dto";
 import { TorrentFileInfo } from "../types/torrent-file-info";
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 
 export class Downloader {
-
   clientPeerId: string;
   infoHash: string;
   parts: FilePiece[];
@@ -24,28 +23,53 @@ export class Downloader {
     this.downloaded = 0;
     this.left = torrentFileInfo.meta.info.length;
 
-    this.infoHash = createInfoHash(torrentFileInfo.bencodedInfo);
-    this.clientPeerId = generateRandomPeerId();
+    this.infoHash = this.createInfoHash(torrentFileInfo.bencodedInfo);
+    this.clientPeerId = this.generateRandomPeerId();
 
     this.parts = this.divideByBlocks(
       torrentFileInfo.meta.info.length,
       torrentFileInfo.meta.info["piece length"],
-      null,
+      null
     );
-    this.parts.forEach(piece => {
-      piece.blocks = this.divideByBlocks(piece.length, DEFAULT_BLOBK_SIZE, piece.index);
+    this.parts.forEach((piece) => {
+      piece.blocks = this.divideByBlocks(
+        piece.length,
+        DEFAULT_BLOBK_SIZE,
+        piece.index
+      );
     });
-
   }
 
-  private divideByBlocks(totalSize: number, blockSize: number, parentIndex: number): FilePiece[] {
+  private divideByBlocks(
+    totalSize: number,
+    blockSize: number,
+    parentIndex: number
+  ): FilePiece[] {
     const parts: FilePiece[] = [];
-    for (let remaining = totalSize, index = 0; remaining > 0; remaining -= blockSize, index++) {
+    for (
+      let remaining = totalSize, index = 0;
+      remaining > 0;
+      remaining -= blockSize, index++
+    ) {
       const begin = totalSize - remaining;
       if (remaining > blockSize) {
-        parts.push({ index, length: blockSize, begin, done: false, peer: null, parent: parentIndex });
+        parts.push({
+          index,
+          length: blockSize,
+          begin,
+          done: false,
+          peer: null,
+          parent: parentIndex,
+        });
       } else {
-        parts.push({ index, length: remaining, begin, done: false, peer: null, parent: parentIndex });
+        parts.push({
+          index,
+          length: remaining,
+          begin,
+          done: false,
+          peer: null,
+          parent: parentIndex,
+        });
       }
     }
     return parts;
@@ -77,7 +101,7 @@ export class Downloader {
         block.data = data;
         block.done = true;
       }
-      part.done = part.blocks.every(piece => piece.done);
+      part.done = part.blocks.every((piece) => piece.done);
       return true;
     }
     return false;
@@ -96,9 +120,24 @@ export class Downloader {
         parts.push(block.data);
       }
     }
-    fs.writeFile(path.join('./downloaded', this.file.name), Buffer.concat(parts), () => {
-      console.log('saving to file');
-    });
+    fs.writeFile(
+      path.join("./downloaded", this.file.name),
+      Buffer.concat(parts),
+      () => {
+        console.log("saving to file");
+      }
+    );
   }
 
+  private createInfoHash(bencodedInfoString: string): string {
+    const sha1 = crypto.createHash("sha1");
+    sha1.update(Buffer.from(bencodedInfoString, "binary"));
+    const hash = sha1.digest("hex");
+    return hash;
+  }
+
+  private generateRandomPeerId() {
+    const peerId = crypto.randomBytes(10).toString("hex");
+    return peerId;
+  }
 }
