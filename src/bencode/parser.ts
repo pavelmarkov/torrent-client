@@ -1,6 +1,11 @@
-import { IMetainfoFile } from "../types/metainfo-file-structure.interface";
+import { IMetainfoFile } from "../core/types/metainfo-file-structure.interface";
 
-type ParsedMagnetType = { [k: string]: ParsedMagnetType; } | ParsedMagnetType[] | number | string | IMetainfoFile;
+type ParsedMagnetType =
+  | { [k: string]: ParsedMagnetType }
+  | ParsedMagnetType[]
+  | number
+  | string
+  | IMetainfoFile;
 
 interface IParsedElement {
   data: ParsedMagnetType;
@@ -8,11 +13,11 @@ interface IParsedElement {
 }
 
 export class Parser {
-  private splitSymbol: string = ':';
-  private dictionarySymbol: string = 'd';
-  private listSymbol: string = 'l';
-  private integerSymbol: string = 'i';
-  private endSymbol: string = 'e';
+  private splitSymbol: string = ":";
+  private dictionarySymbol: string = "d";
+  private listSymbol: string = "l";
+  private integerSymbol: string = "i";
+  private endSymbol: string = "e";
 
   parse(content: string): IParsedElement {
     if (content.startsWith(this.dictionarySymbol)) {
@@ -44,7 +49,7 @@ export class Parser {
     let cursor = 0;
     const partLength = part.length;
 
-    const dictionary: { [k: string]: ParsedMagnetType; } = {};
+    const dictionary: { [k: string]: ParsedMagnetType } = {};
 
     cursor += this.dictionarySymbol.length;
 
@@ -68,7 +73,7 @@ export class Parser {
 
     return {
       data: dictionary,
-      length: cursor
+      length: cursor,
     };
   }
 
@@ -113,9 +118,15 @@ export class Parser {
 
   private parseString(part: string): IParsedElement {
     let cursor = 0;
-    const stringContentSize = part.substring(cursor, part.indexOf(this.splitSymbol));
+    const stringContentSize = part.substring(
+      cursor,
+      part.indexOf(this.splitSymbol)
+    );
     cursor += stringContentSize.length + this.splitSymbol.length;
-    const stringContent = part.substring(cursor, cursor + Number(stringContentSize));
+    const stringContent = part.substring(
+      cursor,
+      cursor + Number(stringContentSize)
+    );
     cursor += Number(stringContentSize);
 
     return {

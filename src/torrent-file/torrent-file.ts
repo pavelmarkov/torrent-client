@@ -1,12 +1,12 @@
-import * as fs from 'fs';
-import { TorrentFileInfo } from '../types/torrent-file-info';
-import { Encoder } from '../bencode/encoder';
-import { Parser } from '../bencode/parser';
-import { IMetainfoFile } from '../types/metainfo-file-structure.interface';
+import * as fs from "fs";
+import { TorrentFileInfo } from "../core/types/torrent-file-info";
+import { Encoder } from "../bencode/encoder";
+import { Parser } from "../bencode/parser";
+import { IMetainfoFile } from "../core/types/metainfo-file-structure.interface";
 
 export async function readTorrentFile(path: string): Promise<TorrentFileInfo> {
   return new Promise((resolve, reject) => {
-    fs.readFile(path, 'binary', async (error, data) => {
+    fs.readFile(path, "binary", async (error, data) => {
       if (error) {
         reject(error);
       }
@@ -24,16 +24,17 @@ export async function readTorrentFile(path: string): Promise<TorrentFileInfo> {
       const encoder = new Encoder();
       result.bencodedInfo = encoder.encode(result.meta.info);
 
-      result.decodeInfoFilePieces = decodeInfoFilePieces(result.meta.info.pieces);
+      result.decodeInfoFilePieces = decodeInfoFilePieces(
+        result.meta.info.pieces
+      );
 
       resolve(result);
     });
   });
-};
-
+}
 
 export function decodeInfoFilePieces(peices: string): string[] {
-  const binaryPieces = Buffer.from(peices, 'binary');
+  const binaryPieces = Buffer.from(peices, "binary");
   const piecesNum = Math.floor(binaryPieces.length / 20);
   const pieces: string[] = [];
 
@@ -44,7 +45,7 @@ export function decodeInfoFilePieces(peices: string): string[] {
       const byte = binaryPieces.readUInt8(shift + byteNum);
       pieceArray.push(byte.toString(16));
     }
-    pieces.push(pieceArray.join('').toString());
+    pieces.push(pieceArray.join("").toString());
   }
 
   return pieces;

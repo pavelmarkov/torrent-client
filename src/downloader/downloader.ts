@@ -1,7 +1,7 @@
-import { DEFAULT_BLOBK_SIZE } from "../consts";
+import { DEFAULT_BLOBK_SIZE } from "../core/consts";
 import * as crypto from "crypto";
-import { FilePiece } from "../types/downloader.dto";
-import { TorrentFileInfo } from "../types/torrent-file-info";
+import { FilePiece } from "../core/types/downloader.dto";
+import { TorrentFileInfo } from "../core/types/torrent-file-info";
 import * as fs from "fs";
 import * as path from "path";
 

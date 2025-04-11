@@ -1,9 +1,9 @@
 import * as net from "net";
-import { PeerInfoDto } from "../types/peers.dto";
+import { PeerInfoDto } from "../core/types/peers.dto";
 import { Socket } from "net";
-import { PeerMessageIdEnum } from "../types/peer-message-id.enum";
+import { PeerMessageIdEnum } from "../core/types/peer-message-id.enum";
 import { Downloader } from "../downloader/downloader";
-import { Logger } from "../logger/logger";
+import { Logger } from "../core/logger/logger";
 
 export class Peer {
   peerId: string;

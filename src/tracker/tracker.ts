@@ -1,14 +1,17 @@
-import { URL } from 'url';
-import { get, IncomingMessage } from 'node:http';
-import { GetPeersDecodedResponseDto, GetPeersRequestDto, PeerInfoDto } from '../types/peers.dto';
-import { Parser } from '../bencode/parser';
-import { Downloader } from '../downloader/downloader';
+import { URL } from "url";
+import { get, IncomingMessage } from "node:http";
+import {
+  GetPeersDecodedResponseDto,
+  GetPeersRequestDto,
+  PeerInfoDto,
+} from "../core/types/peers.dto";
+import { Parser } from "../bencode/parser";
+import { Downloader } from "../downloader/downloader";
 
 export async function getPeersHttp(
   url: string,
-  downloader: Downloader,
+  downloader: Downloader
 ): Promise<GetPeersDecodedResponseDto> {
-
   const requestPeersParams: GetPeersRequestDto = {
     info_hash: downloader.infoHash,
     peer_id: downloader.clientPeerId,
@@ -21,7 +24,7 @@ export async function getPeersHttp(
 
   const announceUrl = new URL(url);
   const encodedHash = urlEncodeHash(requestPeersParams.info_hash);
-  const announceUrlPort = announceUrl.port ? announceUrl.port : '6881';
+  const announceUrlPort = announceUrl.port ? announceUrl.port : "6881";
 
   const params: GetPeersRequestDto = {
     info_hash: encodedHash,
@@ -33,34 +36,35 @@ export async function getPeersHttp(
     compact: requestPeersParams.compact,
   };
 
-  const queryParamString = Object.entries(params).map(
-    ([key, value], index) => `${key}=${value}`
-  ).join('&');
-
+  const queryParamString = Object.entries(params)
+    .map(([key, value], index) => `${key}=${value}`)
+    .join("&");
 
   return new Promise((resolve, reject) => {
-    get({
-      hostname: `${announceUrl.hostname}`,
-      path: `${announceUrl.pathname}?${queryParamString}`,
-      agent: false
-    }, (response: IncomingMessage) => {
+    get(
+      {
+        hostname: `${announceUrl.hostname}`,
+        path: `${announceUrl.pathname}?${queryParamString}`,
+        agent: false,
+      },
+      (response: IncomingMessage) => {
+        const data: Buffer[] = [];
 
-      const data: Buffer[] = [];
+        response.on("data", (chunk) => {
+          data.push(chunk);
+        });
 
-      response.on('data', (chunk) => {
-        data.push(chunk);
-      });
+        response.on("end", () => {
+          const receivedData = Buffer.concat(data);
+          const peers = decodePeersResponse(receivedData);
+          resolve(peers);
+        });
 
-      response.on('end', () => {
-        const receivedData = Buffer.concat(data);
-        const peers = decodePeersResponse(receivedData);
-        resolve(peers);
-      });
-
-      response.on('error', (error) => {
-        reject(error);
-      });
-    });
+        response.on("error", (error) => {
+          reject(error);
+        });
+      }
+    );
   });
 }
 
@@ -73,28 +77,34 @@ function urlEncodeHash(hash: string): string {
       encodedHashArray.push(element);
     }
   }
-  const encodedHash = encodedHashArray.join('');
+  const encodedHash = encodedHashArray.join("");
   return encodedHash;
 }
 
-function decodePeersResponse(peersResponse: Buffer): GetPeersDecodedResponseDto {
+function decodePeersResponse(
+  peersResponse: Buffer
+): GetPeersDecodedResponseDto {
   const parser = new Parser();
-  const responseData = parser.parse(Buffer.from(peersResponse).toString('binary'));
+  const responseData = parser.parse(
+    Buffer.from(peersResponse).toString("binary")
+  );
   const result: GetPeersDecodedResponseDto = {
-    interval: responseData.data['interval'],
-    'min interval': responseData.data['min interval'],
+    interval: responseData.data["interval"],
+    "min interval": responseData.data["min interval"],
     peers: [],
-    complete: responseData.data['complete'],
-    incomplete: responseData.data['incomplete'],
+    complete: responseData.data["complete"],
+    incomplete: responseData.data["incomplete"],
   };
 
-  const peersBuffer = Buffer.from(responseData['data']['peers'], 'binary');
+  const peersBuffer = Buffer.from(responseData["data"]["peers"], "binary");
   const numPeers = Math.floor(peersBuffer.length / 6);
   const peerList: PeerInfoDto[] = [];
 
   for (let peerNum = 0; peerNum < numPeers; peerNum++) {
     const shift = peerNum * 6;
-    const ip = `${peersBuffer[shift]}.${peersBuffer[shift + 1]}.${peersBuffer[shift + 2]}.${peersBuffer[shift + 3]}`;
+    const ip = `${peersBuffer[shift]}.${peersBuffer[shift + 1]}.${
+      peersBuffer[shift + 2]
+    }.${peersBuffer[shift + 3]}`;
     const port = peersBuffer.readUInt16BE(shift + 4);
     peerList.push({ ip, port });
   }
