@@ -3,34 +3,50 @@ import { TorrentFileInfo } from "../core/types/torrent-file-info";
 import { Encoder } from "../bencode/encoder";
 import { Parser } from "../bencode/parser";
 import { IMetainfoFile } from "../core/types/metainfo-file-structure.interface";
+import { Logger } from "../core/logger/logger";
 
-export async function readTorrentFile(path: string): Promise<TorrentFileInfo> {
-  return new Promise((resolve, reject) => {
-    fs.readFile(path, "binary", async (error, data) => {
-      if (error) {
-        reject(error);
-      }
+export class TorrentFile {
+  private readonly path: string;
+  meta: IMetainfoFile;
+  bencodedInfo: string;
+  decodeInfoFilePieces: string[];
 
-      const result: TorrentFileInfo = {
-        meta: null,
-        bencodedInfo: null,
-        decodeInfoFilePieces: null,
-      };
+  logger: Logger;
 
-      const parser = new Parser();
-      const parsedData = parser.parse(data);
-      result.meta = <IMetainfoFile>parsedData.data;
+  constructor(path: string) {
+    this.path = path;
 
-      const encoder = new Encoder();
-      result.bencodedInfo = encoder.encode(result.meta.info);
+    this.logger = new Logger(TorrentFile.name);
+  }
 
-      result.decodeInfoFilePieces = decodeInfoFilePieces(
-        result.meta.info.pieces
-      );
+  async readTorrentFile(): Promise<TorrentFileInfo> {
+    return new Promise((resolve, reject) => {
+      fs.readFile(this.path, "binary", async (error, data) => {
+        if (error) {
+          reject(error);
+        }
 
-      resolve(result);
+        const parser = new Parser();
+        const parsedData = parser.parse(data);
+        this.meta = <IMetainfoFile>parsedData.data;
+
+        this.logFileInfo();
+
+        const encoder = new Encoder();
+        this.bencodedInfo = encoder.encode(this.meta.info);
+
+        this.decodeInfoFilePieces = decodeInfoFilePieces(this.meta.info.pieces);
+
+        resolve(this);
+      });
     });
-  });
+  }
+
+  private logFileInfo(): void {
+    this.logger.log(`tracker url: ${this.meta.announce}`);
+    this.logger.log(`file name: ${this.meta.info.name}`);
+    this.logger.log(`file size: ${this.meta.info.length}`);
+  }
 }
 
 export function decodeInfoFilePieces(peices: string): string[] {

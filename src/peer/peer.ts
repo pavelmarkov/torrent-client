@@ -116,7 +116,7 @@ export class Peer {
   }
 
   receivePieceData(data: Buffer): void {
-    this.logger.log(`receiving piece data: ${data.length}`);
+    this.logger.debug(`receiving piece data: ${data.length}`);
     this.receivedData.push(data);
     this.receivedDataLength += data.length;
     if (this.receivedDataLength === this.receiveDataExpectedLength) {
@@ -127,8 +127,7 @@ export class Peer {
   saveBlock(): void {
     this.receivingPieceData = false;
     const receivedBlock = Buffer.concat(this.receivedData);
-    this.logger.log("received piece block");
-    this.logger.log(`received block length is ${receivedBlock.length}`);
+    this.logger.debug(`received block; block length: ${receivedBlock.length}`);
     this.logger.log(
       `writing block: peice index = ${this.currentPieceIndex}, block index =  ${this.currentBlockIndex}`
     );
@@ -138,16 +137,16 @@ export class Peer {
       this.currentBlockIndex
     );
     const nextUndoneBlock = this.downloader.getNextUndoneBlock(this.peerId);
-    this.logger.log(`next block is: ${JSON.stringify(nextUndoneBlock)}`);
+    this.logger.debug(`next block is: ${JSON.stringify(nextUndoneBlock)}`);
     if (nextUndoneBlock) {
       this.receivedData = [];
       this.receivedDataLength = 0;
       this.receiveDataExpectedLength = nextUndoneBlock.length;
       this.currentPieceIndex = nextUndoneBlock.parent;
       this.currentBlockIndex = nextUndoneBlock.index;
-      setTimeout(() => {
-        this.sendRequest();
-      }, 1000);
+      // setTimeout(() => {
+      this.sendRequest();
+      // }, 1000);
     } else {
       this.downloader.saveFile();
       this.closeConnection();
@@ -201,7 +200,7 @@ export class Peer {
   }
 
   logReceivedData(data: Buffer): void {
-    this.logger.log(`data: length = ${data.length}`);
+    this.logger.debug(`data: length = ${data.length}`);
   }
 
   closeConnection(): void {

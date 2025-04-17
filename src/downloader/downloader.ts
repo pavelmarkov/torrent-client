@@ -4,8 +4,10 @@ import { FilePiece } from "../core/types/downloader.dto";
 import { TorrentFileInfo } from "../core/types/torrent-file-info";
 import * as fs from "fs";
 import * as path from "path";
+import { TorrentFile } from "../torrent-file/torrent-file";
 
 export class Downloader {
+  trackerUrl: string;
   clientPeerId: string;
   infoHash: string;
   parts: FilePiece[];
@@ -16,7 +18,9 @@ export class Downloader {
     name: string;
   };
 
-  constructor(torrentFileInfo: TorrentFileInfo) {
+  constructor(torrentFileInfo: TorrentFile) {
+    this.trackerUrl = torrentFileInfo.meta.announce;
+
     this.file = { name: torrentFileInfo.meta.info.name };
 
     this.uploaded = 0;

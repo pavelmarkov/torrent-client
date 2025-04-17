@@ -12,6 +12,14 @@ export class Logger {
     console.log(`${logName} ${timestamp}: `, message);
   }
 
+  debug(message: string): void {
+    return;
+    const now = new Date().toISOString().substring(11, 19);
+    const logName = this.yellow(`[${this.name}]`);
+    const timestamp = this.blue(`[${now}]`);
+    console.log(`${logName} ${timestamp}: `, message);
+  }
+
   private yellow(text: string): string {
     return `\x1b[33m${text}\x1b[0m`;
   }

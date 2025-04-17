@@ -1,5 +1,5 @@
 import { URL } from "url";
-import { get, IncomingMessage } from "node:http";
+import { get, IncomingMessage, RequestOptions } from "node:http";
 import {
   GetPeersDecodedResponseDto,
   GetPeersRequestDto,
@@ -7,47 +7,57 @@ import {
 } from "../core/types/peers.dto";
 import { Parser } from "../bencode/parser";
 import { Downloader } from "../downloader/downloader";
+import { Logger } from "../core/logger/logger";
 
-export async function getPeersHttp(
-  url: string,
-  downloader: Downloader
-): Promise<GetPeersDecodedResponseDto> {
-  const requestPeersParams: GetPeersRequestDto = {
-    info_hash: downloader.infoHash,
-    peer_id: downloader.clientPeerId,
-    port: null,
-    uploaded: downloader.uploaded,
-    downloaded: downloader.downloaded,
-    left: downloader.left,
-    compact: 1,
-  };
+export class Tracker {
+  downloader: Downloader;
+  peers: PeerInfoDto[];
 
-  const announceUrl = new URL(url);
-  const encodedHash = urlEncodeHash(requestPeersParams.info_hash);
-  const announceUrlPort = announceUrl.port ? announceUrl.port : "6881";
+  logger: Logger;
 
-  const params: GetPeersRequestDto = {
-    info_hash: encodedHash,
-    peer_id: requestPeersParams.peer_id,
-    port: announceUrlPort,
-    uploaded: requestPeersParams.uploaded,
-    downloaded: requestPeersParams.downloaded,
-    left: requestPeersParams.left,
-    compact: requestPeersParams.compact,
-  };
+  constructor(downloader: Downloader) {
+    this.downloader = downloader;
 
-  const queryParamString = Object.entries(params)
-    .map(([key, value], index) => `${key}=${value}`)
-    .join("&");
+    this.logger = new Logger(Tracker.name);
+  }
 
-  return new Promise((resolve, reject) => {
-    get(
-      {
-        hostname: `${announceUrl.hostname}`,
-        path: `${announceUrl.pathname}?${queryParamString}`,
-        agent: false,
-      },
-      (response: IncomingMessage) => {
+  async getPeersHttp(): Promise<GetPeersDecodedResponseDto> {
+    const requestPeersParams: GetPeersRequestDto = {
+      info_hash: this.downloader.infoHash,
+      peer_id: this.downloader.clientPeerId,
+      port: null,
+      uploaded: this.downloader.uploaded,
+      downloaded: this.downloader.downloaded,
+      left: this.downloader.left,
+      compact: 1,
+    };
+
+    const announceUrl = new URL(this.downloader.trackerUrl);
+    const encodedHash = urlEncodeHash(requestPeersParams.info_hash);
+    const announceUrlPort = announceUrl.port ? announceUrl.port : "6881";
+
+    const params: GetPeersRequestDto = {
+      info_hash: encodedHash,
+      peer_id: requestPeersParams.peer_id,
+      port: announceUrlPort,
+      uploaded: requestPeersParams.uploaded,
+      downloaded: requestPeersParams.downloaded,
+      left: requestPeersParams.left,
+      compact: requestPeersParams.compact,
+    };
+
+    const queryParamString = Object.entries(params)
+      .map(([key, value], index) => `${key}=${value}`)
+      .join("&");
+
+    const requestOptions: RequestOptions = {
+      hostname: `${announceUrl.hostname}`,
+      path: `${announceUrl.pathname}?${queryParamString}`,
+      agent: false,
+    };
+
+    return new Promise((resolve, reject) => {
+      get(requestOptions, (response: IncomingMessage) => {
         const data: Buffer[] = [];
 
         response.on("data", (chunk) => {
@@ -56,16 +66,20 @@ export async function getPeersHttp(
 
         response.on("end", () => {
           const receivedData = Buffer.concat(data);
-          const peers = decodePeersResponse(receivedData);
-          resolve(peers);
+          const decodedPeers = decodePeersResponse(receivedData);
+          this.peers = decodedPeers?.peers;
+          this.logger.log(
+            `received peers; number of peers: ${this.peers.length}`
+          );
+          resolve(decodedPeers);
         });
 
         response.on("error", (error) => {
           reject(error);
         });
-      }
-    );
-  });
+      });
+    });
+  }
 }
 
 function urlEncodeHash(hash: string): string {
