@@ -1,10 +1,10 @@
 import { DEFAULT_BLOBK_SIZE } from "../core/consts";
 import * as crypto from "crypto";
 import { FilePiece } from "../core/types/downloader.dto";
-import { TorrentFileInfo } from "../core/types/torrent-file-info";
 import * as fs from "fs";
 import * as path from "path";
 import { TorrentFile } from "../torrent-file/torrent-file";
+import { Logger } from "../core/logger/logger";
 
 export class Downloader {
   trackerUrl: string;
@@ -16,12 +16,20 @@ export class Downloader {
   left: number;
   file: {
     name: string;
+    size: number;
   };
+
+  logger: Logger;
+
+  writableStream: fs.WriteStream;
 
   constructor(torrentFileInfo: TorrentFile) {
     this.trackerUrl = torrentFileInfo.meta.announce;
 
-    this.file = { name: torrentFileInfo.meta.info.name };
+    this.file = {
+      name: torrentFileInfo.meta.info.name,
+      size: torrentFileInfo.meta.info.length,
+    };
 
     this.uploaded = 0;
     this.downloaded = 0;
@@ -42,6 +50,8 @@ export class Downloader {
         piece.index
       );
     });
+
+    this.logger = new Logger(Downloader.name);
   }
 
   private divideByBlocks(
@@ -104,11 +114,18 @@ export class Downloader {
         }
         block.data = data;
         block.done = true;
+        this.progress(block);
       }
       part.done = part.blocks.every((piece) => piece.done);
       return true;
     }
     return false;
+  }
+
+  progress(doneBlock: FilePiece): void {
+    this.left -= doneBlock.length;
+    this.downloaded += doneBlock.length;
+    this.logger.log(`${this.file.size}/${this.downloaded}`);
   }
 
   saveFile(): void {

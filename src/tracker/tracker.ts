@@ -68,9 +68,7 @@ export class Tracker {
           const receivedData = Buffer.concat(data);
           const decodedPeers = decodePeersResponse(receivedData);
           this.peers = decodedPeers?.peers;
-          this.logger.log(
-            `received peers; number of peers: ${this.peers.length}`
-          );
+          this.logger.log(`number of peers: ${this.peers.length}`);
           resolve(decodedPeers);
         });
 

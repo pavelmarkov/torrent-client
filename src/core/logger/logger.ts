@@ -6,18 +6,15 @@ export class Logger {
   }
 
   log(message: string): void {
-    const now = new Date().toISOString().substring(11, 19);
+    const now = new Date().toISOString().substring(11, 23);
     const logName = this.yellow(`[${this.name}]`);
     const timestamp = this.blue(`[${now}]`);
-    console.log(`${logName} ${timestamp}: `, message);
+    console.log(`${timestamp} ${logName}: `, message);
   }
 
   debug(message: string): void {
     return;
-    const now = new Date().toISOString().substring(11, 19);
-    const logName = this.yellow(`[${this.name}]`);
-    const timestamp = this.blue(`[${now}]`);
-    console.log(`${logName} ${timestamp}: `, message);
+    this.log(message);
   }
 
   private yellow(text: string): string {

@@ -78,16 +78,16 @@ export class Peer {
       this.sendHave();
     }
     if (messageType === PeerMessageIdEnum.PIECE) {
-      this.logger.log("piece received");
+      this.logger.debug("piece received");
       this.receivingPieceData = true;
       this.receivePieceMessage(data);
     }
     if (messageType === PeerMessageIdEnum.BITFIELD) {
-      this.logger.log("bitfield received");
+      this.logger.log(`bitfield received from ${this.peerId}`);
       this.sendInterested();
     }
     if (messageType === PeerMessageIdEnum.UNCHOKE) {
-      this.logger.log("unchoke received");
+      this.logger.log(`unchoke received from ${this.peerId}`);
       this.sendRequest();
     }
     if (messageType === PeerMessageIdEnum.KEEP) {
@@ -96,7 +96,7 @@ export class Peer {
   }
 
   receivePieceMessage(data: Buffer): void {
-    this.logger.log("receiving peice message");
+    this.logger.debug("receiving peice message");
     const totalDataLength = data.length;
     const messageLength = data.readUInt32BE();
     const messageType = data.readUInt8(4);
@@ -106,7 +106,7 @@ export class Peer {
     const blockDataPart = data.subarray(13, totalDataLength);
     this.receivedData.push(blockDataPart);
     this.receivedDataLength += blockDataPart.length;
-    this.logger.log(`block length is ${blockDataPart.length}`);
+    this.logger.debug(`block length is ${blockDataPart.length}`);
 
     this.receiveDataExpectedLength = messageLength - (1 + 4 + 4);
 
@@ -128,8 +128,8 @@ export class Peer {
     this.receivingPieceData = false;
     const receivedBlock = Buffer.concat(this.receivedData);
     this.logger.debug(`received block; block length: ${receivedBlock.length}`);
-    this.logger.log(
-      `writing block: peice index = ${this.currentPieceIndex}, block index =  ${this.currentBlockIndex}`
+    this.logger.debug(
+      `writing block: peice index = ${this.currentPieceIndex}, block index =  ${this.currentBlockIndex}, length = ${receivedBlock.length}`
     );
     this.downloader.writeBlock(
       receivedBlock,
@@ -170,7 +170,7 @@ export class Peer {
     message.writeUInt32BE(undoneBlock.parent, 5);
     message.writeUInt32BE(undoneBlock.begin, 9);
     message.writeUInt32BE(undoneBlock.length, 13);
-    this.logger.log(`sending request to ${this.peerId}`); // : ${message.toString("binary")}
+    this.logger.debug(`sending request to ${this.peerId}`); // : ${message.toString("binary")}
     this.client.write(message);
     this.keepAlive = true;
   }
@@ -250,10 +250,10 @@ export class Peer {
       protocolStringLength + firstByteLength
     );
 
-    this.logger.log(`peer message length is: ${peerMessage.length}`);
-    this.logger.log(`protocol: ${protocol.toString("binary")}`);
-    this.logger.log(`info hash: ${infoHash.toString("hex")}`);
+    this.logger.debug(`peer message length is: ${peerMessage.length}`);
+    this.logger.debug(`protocol: ${protocol.toString("binary")}`);
     this.logger.log(`peer id: ${peerId.toString("hex")}`);
+    this.logger.log(`info hash from peer: ${infoHash.toString("hex")}`);
 
     this.peerId = peerId.toString("hex");
     return this.peerId;
