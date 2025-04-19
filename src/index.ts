@@ -6,12 +6,13 @@ import { Downloader } from "./downloader/downloader";
 
 const magnetFilesPath = "./magnet";
 const magnetFileName = "sample.torrent";
+const saveDirectory = "./downloaded";
 
 async function main(path: string): Promise<void> {
   const file = new TorrentFile(path);
   await file.readTorrentFile();
 
-  const downloader = new Downloader(file);
+  const downloader = new Downloader(file, saveDirectory);
 
   const tracker = new Tracker(downloader);
   await tracker.getPeersHttp();

@@ -42,9 +42,8 @@ export class Peer {
   async download(): Promise<void> {
     this.client.connect(this.peerInfo.port, this.peerInfo.ip);
     this.client.on("connect", () => {
-      this.logger.log("connection has occured");
-      const handshakeMessage = this.preparePeerHandshakeMessage();
-      this.client.write(handshakeMessage);
+      this.logger.log("connection has occured, sending handshake");
+      this.client.write(this.downloader.handshakeMessage);
     });
     this.client.on("data", (data) => {
       this.processDataFromPeer(data);
@@ -203,22 +202,6 @@ export class Peer {
   closeConnection(): void {
     this.client.end();
     this.client.destroy();
-  }
-
-  preparePeerHandshakeMessage(): Buffer {
-    const protocolStringLength = Buffer.from([19]);
-    const protocolString = Buffer.from("BitTorrent protocol");
-    const reservedBytes = Buffer.from([0, 0, 0, 0, 0, 0, 0, 0]);
-    const infoHashPart = Buffer.from(this.downloader.infoHash, "hex");
-    this.logger.log(`encoded info hash: ${infoHashPart.toString("hex")}`);
-    const peerIdPart = Buffer.from(this.downloader.clientPeerId, "hex");
-    return Buffer.concat([
-      protocolStringLength,
-      protocolString,
-      reservedBytes,
-      infoHashPart,
-      peerIdPart,
-    ]);
   }
 
   decodePeerHandshakeMessage(peerMessage: Buffer): string {

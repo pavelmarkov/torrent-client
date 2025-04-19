@@ -10,6 +10,7 @@ export class Downloader {
   trackerUrl: string;
   clientPeerId: string;
   infoHash: string;
+  handshakeMessage: Buffer;
 
   parts: FilePiece[];
 
@@ -23,15 +24,20 @@ export class Downloader {
     path: string;
   };
 
+  saveDirectory: string;
+
   logger: Logger;
 
-  constructor(torrentFileInfo: TorrentFile) {
+  constructor(torrentFileInfo: TorrentFile, saveDirectory: string) {
+    this.logger = new Logger(Downloader.name);
+
     this.trackerUrl = torrentFileInfo.meta.announce;
 
+    const filePath = path.join(saveDirectory, torrentFileInfo.meta.info.name);
     this.file = {
       name: torrentFileInfo.meta.info.name,
       size: torrentFileInfo.meta.info.length,
-      path: torrentFileInfo.path,
+      path: filePath,
     };
 
     this.uploaded = 0;
@@ -40,6 +46,7 @@ export class Downloader {
 
     this.infoHash = this.createInfoHash(torrentFileInfo.bencodedInfo);
     this.clientPeerId = this.generateRandomPeerId();
+    this.handshakeMessage = this.preparePeerHandshakeMessage();
 
     this.parts = this.divideByBlocks(
       torrentFileInfo.meta.info.length,
@@ -57,8 +64,6 @@ export class Downloader {
     });
 
     console.dir(this.parts, { depth: null });
-
-    this.logger = new Logger(Downloader.name);
   }
 
   private divideByBlocks(
@@ -186,5 +191,21 @@ export class Downloader {
   private generateRandomPeerId() {
     const peerId = crypto.randomBytes(10).toString("hex");
     return peerId;
+  }
+
+  private preparePeerHandshakeMessage(): Buffer {
+    const protocolStringLength = Buffer.from([19]);
+    const protocolString = Buffer.from("BitTorrent protocol");
+    const reservedBytes = Buffer.from([0, 0, 0, 0, 0, 0, 0, 0]);
+    const infoHashPart = Buffer.from(this.infoHash, "hex");
+    this.logger.log(`encoded info hash: ${infoHashPart.toString("hex")}`);
+    const peerIdPart = Buffer.from(this.clientPeerId, "hex");
+    return Buffer.concat([
+      protocolStringLength,
+      protocolString,
+      reservedBytes,
+      infoHashPart,
+      peerIdPart,
+    ]);
   }
 }
