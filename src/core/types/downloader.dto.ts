@@ -1,7 +1,8 @@
-type FilePieceIndexType = number;
+export type FilePieceIndexType = number;
 
 export class FilePiece {
   index: FilePieceIndexType;
+  position: number;
   begin: number;
   length: number;
   blocks?: FilePiece[];

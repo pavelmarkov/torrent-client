@@ -6,7 +6,7 @@ import { IMetainfoFile } from "../core/types/metainfo-file-structure.interface";
 import { Logger } from "../core/logger/logger";
 
 export class TorrentFile {
-  private readonly path: string;
+  readonly path: string;
   meta: IMetainfoFile;
   bencodedInfo: string;
   decodeInfoFilePieces: string[];

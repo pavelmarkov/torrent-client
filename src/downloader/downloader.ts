@@ -1,6 +1,6 @@
 import { DEFAULT_BLOBK_SIZE } from "../core/consts";
 import * as crypto from "crypto";
-import { FilePiece } from "../core/types/downloader.dto";
+import { FilePiece, FilePieceIndexType } from "../core/types/downloader.dto";
 import * as fs from "fs";
 import * as path from "path";
 import { TorrentFile } from "../torrent-file/torrent-file";
@@ -10,18 +10,20 @@ export class Downloader {
   trackerUrl: string;
   clientPeerId: string;
   infoHash: string;
+
   parts: FilePiece[];
+
   uploaded: number;
   downloaded: number;
   left: number;
+
   file: {
     name: string;
     size: number;
+    path: string;
   };
 
   logger: Logger;
-
-  writableStream: fs.WriteStream;
 
   constructor(torrentFileInfo: TorrentFile) {
     this.trackerUrl = torrentFileInfo.meta.announce;
@@ -29,6 +31,7 @@ export class Downloader {
     this.file = {
       name: torrentFileInfo.meta.info.name,
       size: torrentFileInfo.meta.info.length,
+      path: torrentFileInfo.path,
     };
 
     this.uploaded = 0;
@@ -41,15 +44,19 @@ export class Downloader {
     this.parts = this.divideByBlocks(
       torrentFileInfo.meta.info.length,
       torrentFileInfo.meta.info["piece length"],
-      null
+      null,
+      0
     );
     this.parts.forEach((piece) => {
       piece.blocks = this.divideByBlocks(
         piece.length,
         DEFAULT_BLOBK_SIZE,
-        piece.index
+        piece.index,
+        piece.position
       );
     });
+
+    console.dir(this.parts, { depth: null });
 
     this.logger = new Logger(Downloader.name);
   }
@@ -57,7 +64,8 @@ export class Downloader {
   private divideByBlocks(
     totalSize: number,
     blockSize: number,
-    parentIndex: number
+    parentIndex: number,
+    parentPositon: number
   ): FilePiece[] {
     const parts: FilePiece[] = [];
     for (
@@ -66,25 +74,28 @@ export class Downloader {
       remaining -= blockSize, index++
     ) {
       const begin = totalSize - remaining;
-      if (remaining > blockSize) {
+      const position = begin + parentPositon;
+      if (blockSize > remaining) {
         parts.push({
           index,
-          length: blockSize,
-          begin,
-          done: false,
-          peer: null,
-          parent: parentIndex,
-        });
-      } else {
-        parts.push({
-          index,
+          position,
           length: remaining,
           begin,
           done: false,
           peer: null,
           parent: parentIndex,
         });
+        continue;
       }
+      parts.push({
+        index,
+        position,
+        length: blockSize,
+        begin,
+        done: false,
+        peer: null,
+        parent: parentIndex,
+      });
     }
     return parts;
   }
@@ -112,8 +123,8 @@ export class Downloader {
         if (block.index !== blockIndex) {
           continue;
         }
-        block.data = data;
         block.done = true;
+        this.writeDataChunkToFile(data, block);
         this.progress(block);
       }
       part.done = part.blocks.every((piece) => piece.done);
@@ -122,32 +133,47 @@ export class Downloader {
     return false;
   }
 
+  private async writeDataChunkToFile(
+    data: Buffer,
+    block: FilePiece
+  ): Promise<boolean> {
+    const writeStream = fs.createWriteStream(this.file.path, {
+      start: block.position,
+      flags: "a",
+    });
+
+    return new Promise((resolve, reject) => {
+      writeStream.write(data, (err) => {
+        if (err) {
+          this.logger.error(`error writing to file at position ${block.begin}`);
+          block.done = false;
+          reject(false);
+        }
+        this.logger.log(`wrote data to file at position ${block.begin}`);
+        block.done = true;
+        this.isFilePartDone(block.parent);
+        writeStream.close();
+        this.logger.log(`stream closed`);
+        resolve(true);
+      });
+    });
+  }
+
+  isFilePartDone(partIndex: FilePieceIndexType): boolean {
+    const part = this.parts.find((part) => part.index === partIndex);
+    part.done = part.blocks.every((piece) => piece.done);
+    if (part.done) {
+      this.logger.log(`part with index ${part.index} is finished`);
+    } else {
+      this.logger.log(`part with index ${part.index} is not finished`);
+    }
+    return part.done;
+  }
+
   progress(doneBlock: FilePiece): void {
     this.left -= doneBlock.length;
     this.downloaded += doneBlock.length;
     this.logger.log(`${this.file.size}/${this.downloaded}`);
-  }
-
-  saveFile(): void {
-    const parts: Buffer[] = [];
-    for (const part of this.parts) {
-      if (!part.done) {
-        continue;
-      }
-      for (const block of part.blocks) {
-        if (!block.done) {
-          continue;
-        }
-        parts.push(block.data);
-      }
-    }
-    fs.writeFile(
-      path.join("./downloaded", this.file.name),
-      Buffer.concat(parts),
-      () => {
-        console.log("saving to file");
-      }
-    );
   }
 
   private createInfoHash(bencodedInfoString: string): string {

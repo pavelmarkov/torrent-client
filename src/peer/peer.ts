@@ -144,11 +144,8 @@ export class Peer {
       this.receiveDataExpectedLength = nextUndoneBlock.length;
       this.currentPieceIndex = nextUndoneBlock.parent;
       this.currentBlockIndex = nextUndoneBlock.index;
-      // setTimeout(() => {
       this.sendRequest();
-      // }, 1000);
     } else {
-      this.downloader.saveFile();
       this.closeConnection();
     }
   }
